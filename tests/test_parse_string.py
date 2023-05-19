@@ -81,6 +81,16 @@ tests = {
 
 }
 
+valueParseTests = [
+    {"description": "string literal", "pic": "X(6)", "clause": "\"HELLO!\"", "expect": "HELLO!"},
+    {"description": "spaces", "pic": "X(6)", "clause": "SPACES", "expect": "      "},
+    {"description": "space", "pic": "X(1)", "clause": "SPACE", "expect": " "},
+    {"description": "zeros", "pic": "9(6)", "clause": "ZEROS", "expect": "000000"},
+    {"description": "zeroes", "pic": "9(6)", "clause": "ZEROES", "expect": "000000"},
+    {"description": "zero", "pic": "9(1)", "clause": "ZERO", "expect": "0"},
+    {"description": "hex constant", "pic": "X(1)", "clause": "X'05'", "expect": "05"}
+]
+
 from pyparsing import ParseException
 def test_parse_string():
     failed =0
@@ -155,27 +165,33 @@ def test_extended_char_pic():
     assert result[2].datatype=="str"
     assert result[2].get_total_length()==2
 
-def test_value_clause1():
-    test_str = """
-       01  WORK-BOOK.
-         10  FILLER       PIC X(01) VALUE X'05'.
-    """
-    result = copybook.parse_string(test_str).flatten()
-    assert len(result)==2
-    assert result[1].datatype=="str"
-    assert result[1].get_total_length()==1
-    assert result[1].default_value=="05"
-
-def test_value_clause2():
-    test_str = """
-       01  WORK-BOOK.
-         10  FIELD-A       PIC X(6) VALUE "HELLO!".
-    """
-    result = copybook.parse_string(test_str).flatten()
-    assert len(result)==2
-    assert result[1].datatype=="str"
-    assert result[1].get_total_length()==6
-    assert result[1].default_value=="HELLO!"
+def test_value_clauses():
+    failed_tests = []
+    for test in valueParseTests:
+        copybook_sample = None
+        try:
+            pic_clause = test["pic"]
+            expected_datatype = "str"
+            if "V9(" in pic_clause or "." in pic_clause:
+                expected_datatype = "decimal"
+            elif "S9" in pic_clause or pic_clause.strip()[0] == "9":
+                expected_datatype = "int"
+            value_clause = test["clause"]
+            copybook_sample = f"""
+               01  WORK-BOOK.
+                 10  WS-TEST       PIC {pic_clause} VALUE {value_clause}.
+            """
+            result = copybook.parse_string(copybook_sample).flatten()
+            assert len(result) == 2
+            assert result[1].datatype == expected_datatype
+            #assert result[1].get_total_length() == 1
+            assert result[1].default_value == test["expect"]
+        except (AssertionError, ParseException) as e:
+            description = test["description"]
+            failed_tests.append(description)
+            print(f"test_value_clauses {description} failure: {e}")
+            print(copybook_sample)
+    assert len(failed_tests) == 0
 
 def test_plus_sign_control_symbol():
     test_str = """

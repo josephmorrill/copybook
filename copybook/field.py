@@ -1,5 +1,6 @@
 from .abstract_field import AbstractField
 from pyparsing import ParseException
+
 class Field(AbstractField):
     def __init__(self,s,lok,toks):
         super().__init__(level=int(toks["level"]),name=toks["name"])
@@ -40,8 +41,6 @@ class Field(AbstractField):
             # validate
             if self.length==0 and self.precision==0:
                 raise ParseException(f"can't parse PIC for {toks}")
-
-            self.default_value = toks.get("default_value")
         elif toks.get("type_string"):
             # a string PIC
             type_descriptor = toks.get("type_string")
@@ -53,11 +52,27 @@ class Field(AbstractField):
             if toks.get("values"):
                 for val in toks.get("values"):
                     self.list_of_values[val.get("name")] = val.get("value")
-
-            self.default_value = toks.get("default_value")
         else:
             # no type descriptor
             raise ParseException(f"unknown data type: {toks}")
+
+        # Get default value
+        # Note: Does not handle suppressed leading zeros / spaces or complex PIC's
+        exact_value = toks.get("default_value_exact")
+        if exact_value is not None:
+            exact_value = exact_value.pop()
+        keyword_value = toks.get("default_value_keyword")
+        if keyword_value is not None:
+            exact_value = ""
+            keyword_character = None
+            if keyword_value[0:4] == "ZERO":
+                keyword_character = "0"
+            elif keyword_value[0:5] == "SPACE":
+                keyword_character = " "
+            for i in range(0, self.length):
+                exact_value += keyword_character
+        self.default_value = exact_value
+
     def get_total_length(self):
         return (1 if self.signed else 0) +\
             (1 if self.explicit_decimal else 0) +\
