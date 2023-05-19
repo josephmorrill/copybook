@@ -103,9 +103,15 @@ field = (
     + Optional(
         "VALUE"
         + (
-            (Suppress("X") + QuotedString("'")("default_value"))
-            | QuotedString("\"")("default_value")
-        )
+            (
+                (Suppress("X")+QuotedString("'"))
+                | QuotedString("\"")
+            )("default_value_exact") |
+            (
+                Keyword("SPACES") | Keyword("SPACE")
+                | Keyword("ZEROES") | Keyword("ZEROS") | Keyword("ZERO")
+            )("default_value_keyword")
+        ) + SkipTo(".")
     )
     + "."
     + ZeroOrMore(
